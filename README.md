@@ -32,6 +32,6 @@ swig -c++ -python foxnn.i
 
 Каталоги VC++ -> Каталог библиотек -> Python\lib
 
-Собираем проект. Переносим в папку с проектом _foxnn.pyd и foxnn.py
+Собираем проект. Переносим в папку с вашим проектом _foxnn.pyd и foxnn.py
 
 В программе пишем import foxnn
