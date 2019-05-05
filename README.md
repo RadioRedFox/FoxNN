@@ -56,9 +56,7 @@ activation_function.h, additional_memory.h, foxnn.h, layer.h, neuron.h, settings
 
 ```
 swig -c++ -python foxnn.i
-
 g++ -c -std=c++14 -fPIC -fopenmp foxnn_wrap.cxx -I/usr/include/python3.6m
-
 g++ -shared foxnn_wrap.o -o _foxnn.so -L /usr/lib/python3.6
 ```
 
