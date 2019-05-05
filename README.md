@@ -18,7 +18,7 @@ activation_function.h, additional_memory.h, foxnn.h, layer.h, neuron.h, settings
 
 В командной строке вводим 
 
-swig -c++ -python foxnn.i
+'''swig -c++ -python foxnn.i'''
 
 Добавляем в проект все скаченные файлы .h и foxnn_wrap.cxx
 
