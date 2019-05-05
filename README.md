@@ -7,6 +7,10 @@ activation_function.h, additional_memory.h, foxnn.h, layer.h, neuron.h, settings
 
 В проекте добавляем #include "foxnn.h"
 
+На Windows с Visual Studio в настройках проекта С/С++ -> Язык -> Поддержка Open MP -> Да(/openmp)
+
+На Linux в флагах компиляции -std=c++14 -fopenmp
+
 ## Установка для Python на Windows с Visual Studio
 Дополонительно скачиваем foxnn.i
 
