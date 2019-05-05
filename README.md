@@ -78,7 +78,7 @@ g++ -shared foxnn_wrap.o -o _foxnn.so -L /usr/lib/python3.6
 
 На с++
 
-'''
+'''c++
 
 vector<double> in = { 1, 2, 3}; //на вход нейронная сеть получает три параметра
   
