@@ -117,5 +117,15 @@ nn[1] = "gaussian"
 ```
 Python:
 ```python
-nn.get_layer(1).set_activation_function("gaussian")
+nn.get_layer(1).set_activation_function("gaussian") #swig не переопределяет [] и =
 ```
+Можно сделать надстроки на выходной слой.
+1. Поиск максимума в выходном слое.  
+Пусть у нас на выход после relu сеть выдаёт три числа [1, 4, 2].  
+Если установить nn.settings.max_on_last_layer = 1 (для Python = True), то на выход мы получим [0, 1, 0]
+
+2. Если выходное значение больше определённого значения, то 1, если нет то 0.
+Пусть у нас на выдод после sigmoid сеть выдаёт три числа [0.1, 0.5, 0.9].
+Если установить nn.settings.one_if_value_greater_intermediate_value = 1 (для Python = True) и 
+nn.settings.intermediate_value = 0.5 (=0.5 по умолчанию) то на выход мы получим [0, 1, 1]
+
