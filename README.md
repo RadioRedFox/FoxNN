@@ -78,12 +78,16 @@ g++ -shared foxnn_wrap.o -o _foxnn.so -L /usr/lib/python3.6
 
 На с++
 
-vector<<double>> in = { 1, 2, 3}; //на вход нейронная сеть получает три параметра
+'''
+vector<double> in = { 1, 2, 3}; //на вход нейронная сеть получает три параметра
   
-vector<<double>> out = { 1, 0}; //на выход мы должны получить два значения
+vector<double> out = { 1, 0}; //на выход мы должны получить два значения
 
 data.add_data(in, out);
+'''
 
 На Python
 
+'''
 data.add_data([1, 2, 3], [0, 1])
+'''
