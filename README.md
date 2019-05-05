@@ -28,7 +28,10 @@ activation_function.h, additional_memory.h, foxnn.h, layer.h, neuron.h, settings
 Каталоги VC++ -> Включаемые каталоги -> Python\include  
 Каталоги VC++ -> Каталог библиотек -> Python\lib  
 Собираем проект. Переносим в папку с вашим проектом _foxnn.pyd и foxnn.py  
-В программе пишем import foxnn  
+В программе пишем
+```python
+import foxnn
+```
 
 ## Установка для Python на Linux
 
@@ -43,7 +46,10 @@ g++ -c -std=c++14 -fPIC -fopenmp foxnn_wrap.cxx -I/usr/include/python3.6m
 g++ -shared foxnn_wrap.o -o _foxnn.so -L /usr/lib/python3.6
 ```  
 Переносим в папку с вашим проектом _foxnn.so и foxnn.py  
-В программе пишем import foxnn  
+В программе пишем
+```python
+import foxnn
+```
 
 # Мануал
 
@@ -59,7 +65,7 @@ g++ -shared foxnn_wrap.o -o _foxnn.so -L /usr/lib/python3.6
 
 На с++
 
-'''cpp
+```cpp
 
 vector<double> in = { 1, 2, 3}; //на вход нейронная сеть получает три параметра
   
@@ -67,10 +73,10 @@ vector<double> out = { 1, 0}; //на выход мы должны получит
 
 data.add_data(in, out);
 
-'''
+```
 
 На Python
 
-'''
+```python
 data.add_data([1, 2, 3], [0, 1])
-'''
+```
