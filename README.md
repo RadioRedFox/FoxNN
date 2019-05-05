@@ -37,3 +37,25 @@ swig -c++ -python foxnn.i
 Собираем проект. Переносим в папку с вашим проектом _foxnn.pyd и foxnn.py
 
 В программе пишем import foxnn
+
+## Установка для Python на Linux
+
+Устанавливаем swig
+
+sudo apt install swig
+
+Устанавливаем библиотеки Python
+
+sudo apt-get install python3-dev
+
+Далее собираем саму библиотеку
+
+swig -c++ -python foxnn.i
+
+g++ -c -std=c++14 -fPIC -fopenmp foxnn_wrap.cxx -I/usr/include/python3.6m
+
+g++ -shared foxnn_wrap.o -o _foxnn.so -L /usr/lib/python3.6
+
+Переносим в папку с вашим проектом _foxnn.so и foxnn.py
+
+В программе пишем import foxnn
