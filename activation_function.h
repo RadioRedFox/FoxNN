@@ -12,6 +12,7 @@
 #include <algorithm>
 #include <set>
 #include <numeric>
+#include <memory>
 
 using namespace std;
 

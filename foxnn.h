@@ -16,6 +16,7 @@
 #include <set>
 #include <numeric>
 #include <ostream>
+#include <memory>
 
 using namespace std;
 
@@ -66,7 +67,7 @@ public:
 	{
 		for (int i : parameters)
 			if (i < 1)
-				throw exception("the number of input and output features must be positive");
+				throw runtime_error("the number of input and output features must be positive");
 		for (size_t i = 0; i < parameters.size() - 1; i++)
 			layers.push_back(shared_ptr <layer> (new layer(parameters[i], parameters[i + 1], get_activation_function("sigmoid"))));
 	}
@@ -89,8 +90,8 @@ public:
 			enter = move(out);
 			layers[i]->get_out(enter, out);
 		}
-
-		return  distance(out.begin(), max_element(out.begin(), out.end()));;
+		correction_out(out);
+		return  distance(out.begin(), max_element(out.begin(), out.end()));
 	}
 
 	double get_out(const vector<double> &first_in) const
@@ -100,23 +101,25 @@ public:
 
 		layers[0]->get_out(first_in, out);
 
-		enter = move(out);
-
-		for_each(layers.begin() + 1, layers.end(), [&](const auto next_layer) {
-			next_layer->get_out(enter, out);
+		for (size_t i = 1; i < layers.size(); ++i)
+		{
 			enter = move(out);
-		});
-
-		out = move(enter);
+			layers[i]->get_out(enter, out);
+		}
+		correction_out(out);
 		return out[0];
 	}
 
 	void train_on_file(const string &name_file, const double &speed, const size_t &max_iteration, const double &min_error, const size_t &N_print, const size_t &size_part = 1)
 	{
+		train_data test(name_file);
+		train_on_data(test, speed, max_iteration, min_error, N_print, size_part);
+	}
+   
+	void train_on_data(train_data &test, const double& speed, const size_t& max_iteration, const double& min_error, const size_t& N_print, const size_t& size_part = 1)
+	{
 		vector <memory_layer> memory_layers;
 		vector <derivative> derivativs;
-
-		train_data test(name_file);
 
 		size_t size_part_test = get_part_size(test.size(), size_part);
 
@@ -140,12 +143,11 @@ public:
 				cout << "iteration = " << i << " error = " << er << " n_true = " << n_true << endl;
 				return;
 			}
-			if (i %  N_print == 0)
+			if (i % N_print == 0)
 			{
 				cout << "iteration = " << i << " error = " << er << " n_true = " << n_true << endl;
 			}
 		}
-
 	}
 
 	void save(const string &name_file) const
@@ -211,26 +213,6 @@ private:
 		return 1;
 	}
 
-	double error_function(const vector <memory_layer> &memory_layers, const vector <vector <int>> &y) const
-	{
-		vector <double> for_sum;
-
-		for_sum.reserve(y.size() * layers.back()->get_N_n());
-
-		const size_t y_size = y.size();
-		const size_t N_n_in_last_layer = layers.back()->get_N_n();
-
-		for (size_t i = 0; i < y_size; i++)
-			for (size_t j = 0; j < N_n_in_last_layer; j++)
-				for_sum.push_back((memory_layers.back().enter[i][j] - y[i][j]) * (memory_layers.back().enter[i][j] - y[i][j]));
-
-		sort(for_sum.begin(), for_sum.end(), f_abs_sort);
-
-		const double res = accumulate(for_sum.cbegin(), for_sum.cend(), 0.0);
-
-		return res / 2.0;
-	}
-
 	double get_error_for_test(const train_data &test, int &n_true, const double &error) const
 	{
 
@@ -278,8 +260,38 @@ private:
 	{
 #pragma omp parallel for num_threads(settings.n_threads)
 		for (int j = 0; j < test_size; j++)
+		{
 			for (size_t i = 0; i < layers.size(); i++)
 				layers[i]->get_out(memory_layers[i].enter[j], memory_layers[i + 1].enter[j]);
+			correction_out(memory_layers.back().enter[j]);
+		}
+	}
+
+	void correction_out(vector<double> &out) const
+	{
+		if (settings.max_on_last_layer == 1)
+		{
+			const size_t max_n = distance(out.begin(), max_element(out.begin(), out.end()));
+			fill(out.begin(), out.end(), 0.0);
+			out[max_n] = 1;
+			return;
+		}
+		if (settings.one_if_value_greater_intermediate_value == 1)
+		{
+			for_each(out.begin(), out.end(), [&](double& num)
+				{
+					if (num >= settings.intermediate_value)
+					{
+						num = 1.0;
+					}
+					else
+					{
+						num = 0.0;
+					}
+				}
+			);
+			return;
+		}
 	}
 
 	void create_memory_layer_and_derivativs(const size_t &test_size, vector <memory_layer> &memory_layers, vector <derivative> &derivativs) const
@@ -299,10 +311,10 @@ private:
 		vector <vector <double>> error;
 
 		error_last_layer(memory_layers.back(), test, error);
-		const int layers_size_minus_1 = layers.size() - 1;
+
 #pragma omp parallel for  num_threads(settings.n_threads)
 		for (int i = 0; i < test.size(); i++)
-			for (int j = layers_size_minus_1; j >= 0; --j)
+			for (int j = layers.size() - 1; j >= 0; --j)
 				layers[j]->back_running(error[i], memory_layers[j].enter[i], derivativs[j].d);
 
 #pragma omp parallel for  num_threads(settings.n_threads)	

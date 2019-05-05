@@ -13,6 +13,7 @@
 #include <algorithm>
 #include <set>
 #include <numeric>
+#include <memory>
 
 
 using namespace std;
@@ -46,7 +47,7 @@ public:
 		copy(a.w.cbegin(), a.w.cend(), w.begin());
 	}
 
-	neuron(const neuron const *a)
+	neuron(const neuron * const a)
 	{
 		w.resize(a->w.size());
 		copy(a->w.cbegin(), a->w.cend(), w.begin());
