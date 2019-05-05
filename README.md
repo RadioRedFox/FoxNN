@@ -10,6 +10,8 @@ activation_function.h, additional_memory.h, foxnn.h, layer.h, neuron.h, settings
 ## Установка для Python на Windows с Visual Studio
 Дополонительно скачиваем foxnn.i
 
+Скачиваем swig с официального сайта http://www.swig.org/download.html . Распаковываем и добавляем папку в Path. 
+
 В командной строке вводим 
 
 swig -c++ -python foxnn.i
