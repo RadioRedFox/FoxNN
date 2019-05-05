@@ -109,3 +109,13 @@ import foxnn
 nn = foxnn.neural_network([2, 4, 3, 2])
 ```
 
+По умолчанию все слои имеют функцию активации сигмоиду. Если хотите поменять на другую, то в коде на С++ можно переопределить свою или воспользоваться уже описанными: sigmoid, sinusoid, gaussian, relu  
+Установим на скрытый слой gaussian.  
+C++
+```cpp
+nn[1] = "gaussian"
+```
+Python:
+```python
+nn.get_layer(1).set_activation_function("gaussian")
+```
