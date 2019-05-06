@@ -66,13 +66,9 @@ import foxnn
 На С++
 
 ```cpp
-
 vector<double> in = {1, 2, 3}; //на вход нейронная сеть получает три параметра
-  
 vector<double> out = {1, 0}; //на выход мы должны получить два значения
-
 data.add_data(in, out);
-
 ```
 
 На Python
