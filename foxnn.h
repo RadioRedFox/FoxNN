@@ -1,6 +1,6 @@
 #pragma once
 #include "layer.h"
-#include "additional_memory.h"
+#include "train_data.h"
 #include "settings.h"
 
 #include <iostream>
@@ -17,6 +17,7 @@
 #include <numeric>
 #include <ostream>
 #include <memory>
+#include <iomanip>
 
 using namespace std;
 
@@ -25,34 +26,20 @@ class neural_network
 public:
 	neural_network(void) {}
 
-	neural_network(const string &name_file)
+	neural_network(const string &name_file, const bool& only_scale = false)
 	{
 		ifstream file(name_file);
-		size_t N_layers, N_in, N_n;
-		vector <vector <double>> w;
-		file >> N_layers;
-		string name_function;
-		vector<activation_function> activation_functions(N_layers, nullptr);
-		for (size_t i = 0; i < N_layers; i++)
-		{
-			file >> name_function;
-			activation_functions[i] = get_activation_function_from_file(name_function, file);
-		}
-		for (size_t i = 0; i < N_layers; i++)
-		{
-			file >> N_in;
-			file >> N_n;
-			w.resize(N_n);
-			for (size_t j = 0; j < N_n; ++j)
-			{
-				w[j].resize(N_in + 1);
-				for (size_t k = 0; k < N_in + 1; ++k)
-					file >> w[j][k];
-			}
-			layers.push_back(shared_ptr <layer> (new layer(w, activation_functions[i])));
-		}
 
-		settings = Settings(file);
+		if (only_scale == false)
+			settings = Settings(file);
+
+		size_t N_layers;
+
+		file >> N_layers;
+		layers.reserve(N_layers);
+
+		for (size_t i = 0; i < N_layers; ++i)
+			layers.push_back(make_shared <layer> (file, only_scale));
 
 		file.close();
 	}
@@ -60,42 +47,32 @@ public:
 	neural_network(const neural_network &a)
 	{
 		for (size_t i = 0; i < a.layers.size(); i++)
-			layers.push_back(shared_ptr<layer> (new layer(*(a.layers[i]))));
+			layers.push_back(make_shared<layer> (*(a.layers[i])));
 	}
 
 	neural_network(const vector<int> &parameters)
 	{
+		bool error = false;
 		for (int i : parameters)
 			if (i < 1)
-				throw runtime_error("the number of input and output features must be positive");
-		for (size_t i = 0; i < parameters.size() - 1; i++)
-			layers.push_back(shared_ptr <layer> (new layer(parameters[i], parameters[i + 1], get_activation_function("sigmoid"))));
+			{
+				cout << "the number of input and output features must be positive" << endl;
+				error = true;
+			}
+		if (error == false)
+			for (size_t i = 0; i < parameters.size() - 1; ++i)
+				layers.push_back(make_shared <layer>(parameters[i], parameters[i + 1], get_activation_function("sigmoid")));
 	}
 
 	void next_layer(const layer &new_layer)
 	{
-		shared_ptr<layer> copy_new_layer (new layer(new_layer));
-		layers.push_back(move(copy_new_layer));
+		layers.push_back(make_shared<layer>(new_layer));
 		return;
 	}
 
-	int get_out(const vector<double> &first_in, vector <double> &out) const
+	vector<double> get_out(const vector<double> &first_in) const
 	{
 
-		vector<double> enter;
-		layers[0]->get_out(first_in, out);
-
-		for (size_t i = 1; i < layers.size(); ++i)
-		{
-			enter = move(out);
-			layers[i]->get_out(enter, out);
-		}
-		correction_out(out);
-		return  distance(out.begin(), max_element(out.begin(), out.end()));
-	}
-
-	double get_out(const vector<double> &first_in) const
-	{
 		vector<double> enter;
 		vector<double> out;
 
@@ -104,68 +81,67 @@ public:
 		for (size_t i = 1; i < layers.size(); ++i)
 		{
 			enter = move(out);
-			layers[i]->get_out(enter, out);
+			layers[i]->get_out(enter, out, settings.correct_summation);
 		}
 		correction_out(out);
-		return out[0];
+		return  out;
 	}
 
-	void train_on_file(const string &name_file, const double &speed, const size_t &max_iteration, const double &min_error, const size_t &N_print, const size_t &size_part = 1)
+	vector<double> get_out(const one_train_data &first_in) const
+	{
+		return get_out(first_in.input);
+	}
+
+	void train_on_file(const string &name_file, const double &speed, const size_t &max_iteration, const size_t & size_train_batch = 1)
 	{
 		train_data test(name_file);
-		train_on_data(test, speed, max_iteration, min_error, N_print, size_part);
+		train_on_data(test, speed, max_iteration, size_train_batch);
 	}
    
-	void train_on_data(train_data &test, const double& speed, const size_t& max_iteration, const double& min_error, const size_t& N_print, const size_t& size_part = 1)
-	{
-		vector <memory_layer> memory_layers;
-		vector <derivative> derivativs;
+	void train_on_data(train_data &data_for_train, const double& speed, const size_t& max_iteration, const size_t& size_train_batch = 1)
+	{	
+		double start_time;
+		const size_t size_batch = get_batch_size(data_for_train.size(), size_train_batch);
+		create_memory_layer_and_derivativs(size_batch);
 
-		size_t size_part_test = get_part_size(test.size(), size_part);
+		const size_t size_test = data_for_train.size() * settings.part_for_test;
+		const train_data test = data_for_train.get_part_for_test(size_test);
 
-		create_memory_layer_and_derivativs(size_part_test, memory_layers, derivativs);
+		settings.settings_optimization.adam.step = 0;
+		
+		size_t n_data_for_only_train = data_for_train.size() * (1 - settings.part_for_test);
+		if (n_data_for_only_train == 0 || n_data_for_only_train < size_batch)
+			n_data_for_only_train = data_for_train.size();
+		train_data data_for_only_train = data_for_train.get_first_n(n_data_for_only_train);
 
-		int n_true;
-		double er;
 
-		for (int i = 1; i <= max_iteration; ++i)
+		for (size_t iteration = 1; iteration <= max_iteration; ++iteration)
 		{
-			train_data train_test(test.get_part(size_part_test));
+			start_train_progressbar(iteration, max_iteration, start_time);
+			train_data batch(data_for_only_train.get_part(size_batch));
 
-			init_memory_layers_zero(train_test, memory_layers);
-			for (size_t i = 0; i < derivativs.size(); ++i)
-				derivativs[i].zero();
-			forward_stroke(size_part_test, memory_layers);
-			train(train_test, speed, memory_layers, derivativs);
-			er = get_error_for_test(test, n_true, min_error);
-			if (er < min_error || i == max_iteration)
-			{
-				cout << "iteration = " << i << " error = " << er << " n_true = " << n_true << endl;
-				return;
-			}
-			if (i % N_print == 0)
-			{
-				cout << "iteration = " << i << " error = " << er << " n_true = " << n_true << endl;
-			}
+			forward_stroke(batch);
+			train(batch, speed);
+			
+			print_info_iteration(iteration, max_iteration, size_test, test, start_time);
+			auto_save(iteration);
 		}
+
+		delete_memory_after_train();
 	}
 
-	void save(const string &name_file) const
+	void save(const string &name_file,  const bool &only_scale = false) const
 	{
 		ofstream file(name_file);
-		vector <vector <double>> w;
+		
+		if (only_scale == false)
+			settings.save(file);
+
 		file << layers.size() << endl;
+
 		for (size_t i = 0; i < layers.size(); ++i)
-			file << layers[i]->get_name_activation_function() << endl;
-		for (size_t i = 0; i < layers.size(); ++i)
-		{
-			file << layers[i]->get_N_w() << " " << layers[i]->get_N_n() << endl;
-			layers[i]->get_all_w(w);
-			for (size_t j = 0; j < w.size(); j++)
-				for (size_t k = 0; k < w[j].size(); k++)
-					file << w[j][k] << endl;
-		}
-		settings.save(file);
+			layers[i]->save(file, only_scale);
+
 		file.close();
 		return;
 	}
@@ -173,21 +149,30 @@ public:
 	void random_mutation(const double &speed)
 	{
 #pragma omp parallel for  num_threads(settings.n_threads)
-		for (int i = 0; i < layers.size(); i++)
+		for (size_t i = 0; i < layers.size(); ++i)
 			layers[i]->random_mutation(speed);
 	}
 
 	void smart_mutation(const double &speed)
 	{
 #pragma omp parallel for  num_threads(settings.n_threads)
-		for (int i = 0; i < layers.size(); i++)
+		for (size_t i = 0; i < layers.size(); ++i)
 			layers[i]->smart_mutation(speed);
 	}
 
 	void print_info(void)
 	{
 		for (size_t i = 0; i < layers.size(); ++i)
-			cout << "layer " << i << " n_in = " << layers[i]->get_N_w() << " n_out = " << layers[i]->get_N_n() << " activation_function_base_class = " << layers[i]->get_name_activation_function() << endl;
+			layers[i]->print(i);
+
+		settings.print_settings();
+	}
+
+	void testing(const train_data& test) const
+	{
+		size_t n_true;
+		const double er = get_error_for_test(test, n_true);
+		cout << "error = " << scientific << setprecision(15) << er << " n_true = " << n_true << "/" << test.size() << endl;
 	}
 
 	layer& operator[] (const size_t &i)
@@ -204,66 +189,155 @@ public:
 
 private:
 
-	size_t get_part_size(const size_t &size_file_test, const size_t &size_part)
+	void set_Adam_step()
 	{
-		if (size_part == 0 || size_part >= size_file_test)
+
+	}
+
+	void delete_memory_after_train()
+	{
+		for (auto i : layers)
+			i->delete_memory_after_train();
+	}
+
+	void auto_save(const size_t &iteration) const
+	{
+		if (settings.auto_save_iteration != 0)
+			if (iteration % settings.auto_save_iteration == 0)
+				save(settings.auto_save_name_file);
+	}
+
+	void print_info_iteration(const size_t &iteration, const size_t &max_iteration, const size_t &size_test, const train_data &test, const double &start_time) const
+	{
+		train_progressbar(iteration, max_iteration, start_time);
+
+		if (settings.n_print != 0 && size_test != 0)
+			if (iteration == max_iteration || (iteration % settings.n_print == 0))
+			{
+				testing(test);
+				cout << "iteration = " << iteration << endl << endl;
+			}
+	}
+
+	void start_train_progressbar(const size_t &i, const size_t &max_iteration, double &start_time) const
+	{
+		if (settings.n_print == 0)
+			return;
+		if ((i - 1) % settings.n_print == 0)
+		{
+			start_time = omp_get_wtime();
+			cout << "train progressbar: ";
+			const size_t i_last_print = i - 1;
+			const size_t n_iteration_between_print = (max_iteration >= i_last_print + settings.n_print) ? settings.n_print : max_iteration - i_last_print;
+			start_progressbar(n_iteration_between_print);
+		}
+	}
+
+	void start_progressbar(const size_t& max_iteration) const
+	{
+		const size_t len_str_max_iteration = std::to_string(max_iteration).size();
+		cout << setw(len_str_max_iteration) << 0 << "/" << max_iteration << " (" << setw(3) << 0 << "%)";
+	}
+
+	void progressbar(const size_t& now, const size_t& max_iteration) const
+	{
+		const size_t len_str_max_iteration = std::to_string(max_iteration).size();
+		const size_t proc = (now * 100) / max_iteration;
+		string deleter;
+		for (int i = 0; i < 2 * len_str_max_iteration + 8; ++i)
+			deleter.push_back('\b');
+		cout << deleter;
+		cout << setw(len_str_max_iteration) << now << "/" << max_iteration << " (" << setw(3) << proc << "%)";
+	}
+
+	void train_progressbar(const size_t & i, const size_t & max_iteration, const double& start_time) const
+	{
+		if (settings.n_print == 0)
+			return;
+		const size_t i_after_print = i - ((i - 1) / settings.n_print) * settings.n_print;
+
+		const size_t i_last_print = ((i - 1) / settings.n_print) * settings.n_print;
+
+		const size_t n_iteration_between_print = (max_iteration < i_last_print + settings.n_print) ? max_iteration - i_last_print : settings.n_print;
+
+		progressbar(i_after_print, n_iteration_between_print);
+
+		if (i_after_print == n_iteration_between_print)
+		{
+			const double train_time = omp_get_wtime() - start_time;
+			cout << " train_time = " << fixed << setprecision(3) << train_time << endl;
+		}
+	}
+
+	size_t get_batch_size(const size_t &size_file_test, const size_t & size_train_batch) const
+	{
+		if (size_train_batch == 0 || size_train_batch >= size_file_test)
 			return size_file_test;
 		else
-			return size_part;
+			return size_train_batch;
 		return 1;
 	}
 
-	double get_error_for_test(const train_data &test, int &n_true, const double &error) const
+	double get_error_for_test(const train_data &test, size_t &n_true) const
 	{
-
-		double res = 0;
-		n_true = 0;
-		vector <double> out;
-		for (size_t i = 0; i < test.size(); ++i)
+		const double start_test = omp_get_wtime();
+		double error = 0.0;
+		size_t n_true_answer = 0;
+		cout << "test progressbar: ";
+		start_progressbar(test.size());
+		size_t iteration_done = 0;
+		omp_lock_t lock;
+		omp_init_lock(&lock);
+#pragma omp parallel for  num_threads(settings.n_threads)  reduction (+: error) reduction (+: n_true_answer) shared(test)
+		for (size_t i = 0; i < test.size(); ++i) 
 		{
-			int need_max = 0;
-			get_out(test[i]->in, out);
+			size_t need_max = 0;
+			const vector <double> out = get_out(test[i]->input);
 			for (size_t j = 0; j < out.size(); ++j)
 			{
-				res += fabs(out[j] - test[i]->out[j]);
-				if (fabs(out[j] - test[i]->out[j]) < error)
+				const double delta = fabs(out[j] - test[i]->out[j]);
+				error += delta;
+				if (delta < settings.min_error)
 					need_max++;
 			}
 			if (need_max == out.size())
-				n_true++;
+				n_true_answer++;
+			omp_set_lock(&lock);
+			iteration_done++;
+			progressbar(iteration_done, test.size());
+			omp_unset_lock(&lock);
 		}
-		return res / test.size();
+		n_true = n_true_answer;
+		omp_destroy_lock(&lock);
+
+		const double time_test = omp_get_wtime() - start_test;
+		cout << " time_test = " << fixed << setprecision(3) << time_test << endl;
+		return error / test.size();
 	}
 
-	void error_last_layer(const memory_layer &last_layer, const train_data &test, vector <vector <double>> &error) const
+	void error_last_layer(const train_data &batch, vector <vector <double>> &error) const
 	{
-		error.resize(test.size());
-		for (size_t i = 0; i < test.size(); ++i)
-			error[i].resize(test[i]->out.size());
+		error.resize(batch.size());
+		for (size_t i = 0; i < batch.size(); ++i)
+			error[i].resize(batch[i]->out.size());
 
-		for (size_t i = 0; i < test.size(); ++i)
-			for (size_t j = 0; j < test[i]->out.size(); ++j)
-				error[i][j] = last_layer.enter[i][j] - test[i]->out[j];
+		for (size_t i = 0; i < batch.size(); ++i)
+			for (size_t j = 0; j < batch[i]->out.size(); ++j)
+				error[i][j] = layers.back()->output[i][j] - batch[i]->out[j];
 		return;
 	}
 
-	void init_memory_layers_zero(const train_data &test, vector <memory_layer> &memory_layers) const
-	{	
-		for (size_t i = 0; i < test.size(); ++i)
-		{
-			memory_layers[0].enter[i].resize(test[i]->in.size());
-			copy(test[i]->in.cbegin(), test[i]->in.cend(), memory_layers[0].enter[i].begin());
-		}
-	}
-
-	void forward_stroke(const int &test_size, vector <memory_layer> &memory_layers) const
+	void forward_stroke(const train_data &batch)
 	{
-#pragma omp parallel for num_threads(settings.n_threads)
-		for (int j = 0; j < test_size; j++)
+		vector <shared_ptr<layer>>& layers2 = layers;
+#pragma omp parallel for num_threads(settings.n_threads) shared(batch, layers2)
+		for (size_t j = 0; j < batch.size(); ++j)
 		{
-			for (size_t i = 0; i < layers.size(); i++)
-				layers[i]->get_out(memory_layers[i].enter[j], memory_layers[i + 1].enter[j]);
-			correction_out(memory_layers.back().enter[j]);
+			layers2[0]->get_out(batch[j]->input, layers2[0]->output[j]);
+
+			for (size_t i = 1; i < layers2.size(); ++i)
+				layers2[i]->get_out(layers2[i - 1]->output[j], layers2[i]->output[j]);
+			correction_out(layers2.back()->output[j]);
 		}
 	}
 
@@ -294,39 +368,34 @@ private:
 		}
 	}
 
-	void create_memory_layer_and_derivativs(const size_t &test_size, vector <memory_layer> &memory_layers, vector <derivative> &derivativs) const
+	void create_memory_layer_and_derivativs(const size_t & size_batch)
 	{
-		memory_layers.resize(layers.size() + 1);
-		for (size_t i = 0; i < memory_layers.size(); ++i)
-			memory_layers[i].enter.resize(test_size);
-
-		derivativs.resize(layers.size());
-
-		for (size_t i = 0; i < derivativs.size(); ++i)
-			derivativs[i].init(layers[i]->get_N_n(), layers[i]->get_N_w());
+		for (size_t i = 0; i < layers.size(); ++i)
+			layers[i]->init_memory_for_train(size_batch, settings);
 	}
 
-	void train(const train_data &test, const double &speed, vector <memory_layer> &memory_layers, vector <derivative> &derivativs)
+	void train(const train_data & batch, const double &speed)
 	{
 		vector <vector <double>> error;
+		vector <shared_ptr<layer>>& layers2 = layers;
+		error_last_layer(batch, error);
 
-		error_last_layer(memory_layers.back(), test, error);
+	
 
-#pragma omp parallel for  num_threads(settings.n_threads)
-		for (int i = 0; i < test.size(); i++)
-			for (int j = layers.size() - 1; j >= 0; --j)
-				layers[j]->back_running(error[i], memory_layers[j].enter[i], derivativs[j].d);
+#pragma omp parallel for  num_threads(settings.n_threads) shared(error, batch, layers2)
+		for (size_t i = 0; i < batch.size(); ++i)
+		{
+			for (size_t j = layers2.size() - 1; j >= 1; --j)
+				layers2[j]->back_running(error[i], layers2[j - 1]->output[i], settings.correct_summation);
 
-#pragma omp parallel for  num_threads(settings.n_threads)	
-		for (int i = 0; i < layers.size(); i++)
-			for (size_t j = 0; j < derivativs[i].d.size(); j++)
-				for (size_t k = 0; k < derivativs[i].d[j].size(); k++)
-					derivativs[i].d[j][k] *= speed;
+			layers2[0]->back_running(error[i], batch[i]->input, settings.correct_summation);
+		}
 
-#pragma omp parallel for  num_threads(settings.n_threads)
-		for (int i = 0; i < layers.size(); i++)
-			layers[i]->correction_of_scales(derivativs[i].d);
+#pragma omp parallel for  num_threads(settings.n_threads) shared(layers2)
+		for (int i = 0; i < layers2.size(); ++i)
+			layers2[i]->correction_of_scales(speed, settings);
 
+		settings.settings_optimization.adam.next_step();
 		return;
 	}
 

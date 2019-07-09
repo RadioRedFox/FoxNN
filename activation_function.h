@@ -6,6 +6,7 @@
 #include <random> 
 #include <ctime>
 #include <string>
+#include<corecrt_math_defines.h>
 #include <cmath>
 #include <omp.h>
 #include <iterator>
@@ -13,26 +14,46 @@
 #include <set>
 #include <numeric>
 #include <memory>
+#include <iomanip>
+#include <map>
 
 using namespace std;
 
 class activation_function_base_class
 {
 public:
-	activation_function_base_class(const string &name_activation_function) :name(name_activation_function) {}
+	activation_function_base_class(const string &name_activation_function, const vector <double> &new_parameters = {}) :name(name_activation_function)
+	{
+		parameters.resize(new_parameters.size());
+		parameters.shrink_to_fit();
+		copy(new_parameters.cbegin(), new_parameters.cend(), parameters.begin());
+	}
+
+	static void read_from_file(ifstream& open_file, vector <double>& new_parameters, string& name_activation_function)
+	{
+		open_file >> name_activation_function;
+		size_t n_parameters;
+		open_file >> n_parameters;
+		new_parameters.resize(n_parameters);
+		new_parameters.shrink_to_fit();
+		for (size_t i = 0; i < n_parameters; ++i)
+			open_file >> new_parameters[i];
+	}
 
 	virtual double get_out(const double &x) const = 0;
 
 	virtual double get_derivative_out(const double &x) const = 0;
 
-	void save_name(ofstream &file)
+	void save(ofstream &open_file) const
 	{
-		file << name << endl;
+		open_file << name << endl;
+		open_file << parameters.size() << endl;
+		for (size_t i = 0; i < parameters.size(); ++i)
+			open_file << setprecision(15) << parameters[i] << endl;
 	}
 
-	virtual void save(ofstream &file) const = 0;
-
-	const string name;
+	string name;
+	vector <double> parameters;
 };
 
 using activation_function = shared_ptr<activation_function_base_class const>;
@@ -50,7 +71,7 @@ public:
 			if (x > 0)
 				return 1;
 			else
-				return 0.000000001;
+				return 0.0000000000001;
 		}
 		return res;
 	}
@@ -62,8 +83,6 @@ public:
 			return 0.0000000001;
 		return d_res;
 	}
-
-	void save(ofstream &file) const {}
 };
 
 class sinusoid : public activation_function_base_class
@@ -80,8 +99,6 @@ public:
 	{
 		return cos(x);
 	}
-
-	void save(ofstream &file) const	{}
 };
 
 class gaussian : public activation_function_base_class
@@ -110,7 +127,6 @@ public:
 		return d_res;
 	}
 
-	void save(ofstream &file) const {}
 };
 
 class relu : public activation_function_base_class
@@ -134,43 +150,187 @@ public:
 			return 1;
 	}
 
-	void save(ofstream &file) const {}
 };
 
-activation_function need_name_only(const string &name)
+class identity_x : public activation_function_base_class
 {
-	activation_function activ_f = nullptr;
-	if (name == "sigmoid")
-		activ_f = activation_function(new sigmoid());
-	if (name == "sinusoid")
-		activ_f = activation_function(new sinusoid());
-	if (name == "gaussian")
-		activ_f = activation_function(new gaussian());
-	if (name == "relu")
-		activ_f = activation_function(new relu());
-	return activ_f;
+public:
+	identity_x() : activation_function_base_class("identity_x") {}
+
+	double get_out(const double& x) const
+	{
+			return x;
+	}
+
+	double get_derivative_out(const double& x) const
+	{
+			return 1;
+	}
+
+};
+
+class tan_h : public activation_function_base_class
+{
+public:
+	tan_h() : activation_function_base_class("tan_h") {}
+
+	double get_out(const double& x) const
+	{
+		double res = (exp(x) - exp(-x)) / (exp(x) + exp(-x));
+		if (res != res)
+		{
+			if (x > 0)
+				return 1;
+			else
+				return 0.0000000000001;
+		}
+		return res;
+	}
+
+	double get_derivative_out(const double& x) const
+	{
+		double res = 1 - get_out(x) * get_out(x); // 1 - f(x)^2
+		if (res >= 0.0 && res <= 0.0)
+			return 0.0000000000001;
+		return res;
+	}
+};
+
+class arctan : public activation_function_base_class
+{
+public:
+	arctan() : activation_function_base_class("arctan") {}
+
+	double get_out(const double& x) const
+	{
+		double res = atan(x);
+		if (res != res)
+		{
+			if (x > 0)
+				return M_PI_2;
+			else
+				return -M_PI_2;
+		}
+		return res;
+	}
+
+	double get_derivative_out(const double& x) const
+	{
+		return 1 / (x * x + 1);
+	}
+};
+
+class elu : public activation_function_base_class
+{
+public:
+	elu(const vector<double>& new_parameters) : activation_function_base_class("elu", new_parameters)
+	{
+		if (new_parameters.size() == 0)
+		{
+			parameters.reserve(1);
+			parameters.push_back(1.0);
+		}
+	}
+
+	double get_out(const double& x) const
+	{
+		if (x >= 0.0)
+			return x;
+		double res = parameters[0] * (exp(x) - 1);
+		if (res != res)
+		{
+			return -parameters[0];
+		}
+		return res;
+	}
+
+	double get_derivative_out(const double& x) const
+	{
+		double res = get_out(x) + parameters[0];
+		if (res >= 0.0 && res <= 0.0)
+			return 0.0000000000001;
+		return res;
+	}
+};
+
+enum name_functions {Sigmoid = 1, Sinusoid, Gaussian, Relu, Identity_x, Tan_h, Arctan, Elu};
+
+map <string, size_t> get_map()
+{
+	map <string, size_t> map_functions;
+	map_functions["sigmoid"] = Sigmoid;
+	map_functions["sinusoid"] = Sinusoid;
+	map_functions["gaussian"] = Gaussian;
+	map_functions["relu"] = Relu;
+	map_functions["identity_x"] = Identity_x;
+	map_functions["tan_h"] = Tan_h;
+	map_functions["arctan"] = Arctan;
+	map_functions["elu"] = Elu;
+	return map_functions;
 }
 
-activation_function get_activation_function_from_file(const string &name, ifstream &file)
+void print_names_functions()
 {
-	activation_function activ_f = need_name_only(name);
-	return activ_f;
+	map <string, size_t> map_functions = get_map();
+	for (auto i = map_functions.cbegin(); i != map_functions.cend(); ++i)
+		cout << i->first << endl;
 }
+
 
 activation_function get_activation_function(const string &name, const vector<double> &parameters = {})
 {
-	activation_function activ_f = need_name_only(name);
+	activation_function activ_f = nullptr;
+	static map <string, size_t> map_functions = get_map();
+	size_t num_function = 0;
+	try
+	{
+		num_function = map_functions[name];
+	}
+	catch(...)
+	{
+		return nullptr;
+	}
+	switch (num_function)
+	{
+	case(Sigmoid):
+		activ_f = activation_function(new sigmoid());
+		break;
+	case(Sinusoid):
+		activ_f = activation_function(new sinusoid());
+		break;
+	case(Gaussian):
+		activ_f = activation_function(new gaussian());
+		break;
+	case(Relu):
+		activ_f = activation_function(new relu());
+		break;
+	case(Identity_x):
+		activ_f = activation_function(new identity_x());
+		break;
+	case(Tan_h):
+		activ_f = activation_function(new tan_h());
+		break;
+	case(Arctan):
+		activ_f = activation_function(new arctan());
+		break;
+	case(Elu):
+		activ_f = activation_function(new elu(parameters));
+		break;
+	default:
+		return nullptr;
+	}
 	return activ_f;
 }
 
-activation_function get_activation_function(activation_function_base_class const * copy_function)
+activation_function get_activation_function_from_file(ifstream& open_file)
 {
-	activation_function activ_f = need_name_only(copy_function->name);
-	return activ_f;
+	string name;
+	vector<double> parameters;
+	activation_function_base_class::read_from_file(open_file, parameters, name);
+	return get_activation_function(name, parameters);
 }
 
 activation_function get_activation_function(const activation_function copy_function)
 {
-	activation_function activ_f = need_name_only(copy_function->name);
-	return activ_f;
+	return get_activation_function(copy_function->name, copy_function->parameters);
 }

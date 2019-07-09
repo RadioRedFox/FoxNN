@@ -20,38 +20,15 @@ using namespace std;
 class layer
 {
 public:
-	layer(const size_t &N_in, const size_t &N_neurons,  activation_function_base_class const * activ_f = nullptr) : neurons()
-	{
-		neurons.reserve(N_neurons);
-		for (size_t i = 0; i < N_neurons; i++)
-			neurons.push_back(shared_ptr<neuron> (new neuron(N_in)));
-
-		if (activ_f == nullptr)
-			res_function = activation_function(new sigmoid());
-		else
-			res_function = get_activation_function(activ_f);
-	}
-
-	layer(const vector <vector <double>> &v_w, activation_function_base_class const * activ_f = nullptr)
-	{
-		neurons.reserve(v_w.size());
-		for (vector <vector <double>>::const_iterator w = v_w.cbegin(); w < v_w.end(); ++w)
-			neurons.push_back(shared_ptr<neuron> (new neuron(*w)));
-
-		if (activ_f == nullptr)
-			res_function = activation_function(new sigmoid());
-		else
-			res_function = get_activation_function(activ_f);
-	}
 
 	layer(const size_t &N_in, const size_t &N_neurons, const activation_function activ_f = nullptr) : neurons()
 	{
 		neurons.reserve(N_neurons);
 		for (size_t i = 0; i < N_neurons; i++)
-			neurons.push_back(shared_ptr<neuron> (new neuron(N_in)));
+			neurons.push_back(make_shared<neuron> (N_in));
 
 		if (activ_f == nullptr)
-			res_function = activation_function(new sigmoid());
+			res_function = get_activation_function("sigmoid");
 		else
 			res_function = get_activation_function(activ_f);
 	}
@@ -60,10 +37,10 @@ public:
 	{
 		neurons.reserve(v_w.size());
 		for (vector <vector <double>>::const_iterator w = v_w.cbegin(); w < v_w.end(); ++w)
-			neurons.push_back(shared_ptr<neuron>(new neuron(*w)));
+			neurons.push_back(make_shared<neuron>(*w));
 
 		if (activ_f == nullptr)
-			res_function = activation_function(new sigmoid());
+			res_function = get_activation_function("sigmoid");
 		else
 			res_function = get_activation_function(activ_f);
 	}
@@ -71,11 +48,24 @@ public:
 	layer(const layer &a)
 	{
 		for (size_t i = 0; i < a.neurons.size(); ++i)
-			neurons.push_back(shared_ptr<neuron> (new neuron(*(a.neurons[i]))));
+			neurons.push_back(make_shared<neuron> (*(a.neurons[i])));
 
 		res_function = get_activation_function(a.res_function);
 	}
 	
+	layer(ifstream& open_file, const bool& only_scale = false)
+	{
+		if (only_scale == false)
+			res_function = get_activation_function_from_file(open_file);
+		else
+			res_function = get_activation_function("sigmoid");
+		size_t N_neuron;
+		open_file >> N_neuron;
+		neurons.reserve(N_neuron);
+		for (size_t i = 0; i < N_neuron; ++i)
+			neurons.push_back(make_shared<neuron>(open_file));
+	}
+
 	layer (layer &&a) noexcept
 	{
 		for (size_t i = 0; i < a.neurons.size(); ++i)
@@ -88,55 +78,66 @@ public:
 		a.res_function = nullptr;
 	}
 
-	void get_error(vector <double> &out_error, const vector <double> &error, const vector <double> enter) const
+	void get_error(vector <double> &out_error, const vector <double> &error, const vector <double> enter, const bool& correct_summation) const
 	{
 		const size_t N_neurons = neurons.size();
 		const size_t N_enter = enter.size();
 		vector <double> d_out(N_neurons);
-		vector <vector <double>> for_sum_error(N_enter);
+		
 
+		out_error.resize(N_enter, 0.0);
+		transform(neurons.cbegin(), neurons.cend(), d_out.begin(), [&](const shared_ptr<neuron> n) 
+			{return n->get_d_out(enter, res_function, correct_summation); }); //	d_out[i] = neurons[i]->get_d_out(enter)
 
-		for (vector<vector <double>>::iterator v = for_sum_error.begin(); v < for_sum_error.end(); ++v)
-			v->resize(N_neurons);
-
-		transform(neurons.cbegin(), neurons.cend(), d_out.begin(), [&](const shared_ptr<neuron> n) {return n->get_d_out(enter, res_function); }); //	d_out[i] = neurons[i]->get_d_out(enter)
-
-		for (size_t i = 0; i < N_enter; ++i)
-			for (size_t j = 0; j < N_neurons; ++j)
-				for_sum_error[i][j] = error[j] * d_out[j] * neurons[j]->get_w(i);
-
-		for (vector<vector <double>>::iterator v = for_sum_error.begin(); v < for_sum_error.end(); ++v)
-			sort(v->begin(), v->end(), f_abs_sort);
-
-		out_error.resize(N_enter);
-		transform(for_sum_error.cbegin(), for_sum_error.cend(), out_error.begin(), [](const vector<double> &sum_error)
+		if (correct_summation == false)
 		{
-			return accumulate(sum_error.cbegin(), sum_error.cend(), 0.0);
-		}); // out_error[i] = sum(for_sum_error[i])
+			for (size_t i = 0; i < N_enter; ++i)
+				for (size_t j = 0; j < N_neurons; ++j)
+					out_error[i] += error[j] * d_out[j] * neurons[j]->get_w(i);
+		}
+		else
+		{
+			vector <vector <double>> for_sum_error(N_enter);
+
+			for (vector<vector <double>>::iterator v = for_sum_error.begin(); v < for_sum_error.end(); ++v)
+				v->resize(N_neurons);
+
+			for (size_t i = 0; i < N_enter; ++i)
+				for (size_t j = 0; j < N_neurons; ++j)
+					for_sum_error[i][j] = error[j] * d_out[j] * neurons[j]->get_w(i);
+
+			for (vector<vector <double>>::iterator v = for_sum_error.begin(); v < for_sum_error.end(); ++v)
+				sort(v->begin(), v->end(), f_abs_sort);
+
+			transform(for_sum_error.cbegin(), for_sum_error.cend(), out_error.begin(), [](const vector<double>& sum_error)
+				{
+					return accumulate(sum_error.cbegin(), sum_error.cend(), 0.0);
+				}); // out_error[i] = sum(for_sum_error[i])
+		}
 	}
 
-	void back_running(vector <double> &error, const vector <double> &enter, vector <vector <double>> &d) const
+	void back_running(vector <double> &error, const vector <double> &enter, const bool& correct_summation)
 	{
 		const size_t N_neurons = neurons.size();
 		vector <double> out_error;
-		get_error(out_error, error, enter);
+		get_error(out_error, error, enter, correct_summation);
 
 		for (size_t i = 0; i < N_neurons; ++i)
-			neurons[i]->derivate_w(error[i], enter, d[i], res_function);
+			neurons[i]->derivate_w(error[i], enter, res_function, correct_summation);
 		error = move(out_error);
 	}
 
-	void get_out(const vector <double> &enter, vector <double> &out) const
+	void get_out(const vector <double> &enter, vector <double> &out, const bool& correct_summation = false) const
 	{
 		out.resize(neurons.size());
-		transform(neurons.cbegin(), neurons.cend(), out.begin(), [&](const shared_ptr<neuron> n) {return n->get_out(enter, res_function); }); //out[i] = neurot[i].get_out(entr)
+		transform(neurons.cbegin(), neurons.cend(), out.begin(), [&](const shared_ptr<neuron> n) 
+			{return n->get_out(enter, res_function, correct_summation); }); //out[i] = neurot[i].get_out(entr)
 	}
 
-	void correction_of_scales(const vector <vector <double>> &d)
+	void correction_of_scales(const double& speed, const Settings &setting)
 	{
-		const size_t N_neurons = neurons.size();
-		for (size_t i = 0; i < N_neurons; ++i)
-			neurons[i]->correction_of_scales(d[i]);
+		for (size_t i = 0; i < neurons.size(); ++i)
+			neurons[i]->correction_of_scales(speed, setting);
 		return;
 	}
 
@@ -187,7 +188,7 @@ public:
 		if (this != &a)
 		{
 			for (size_t i = 0; i < a.neurons.size(); ++i)
-				neurons.push_back(shared_ptr<neuron>(new neuron(*(a.neurons[i]))));
+				neurons.push_back(make_shared<neuron>(*(a.neurons[i])));
 
 			res_function = get_activation_function(a.res_function);
 		}
@@ -225,9 +226,9 @@ public:
 		return *this;
 	}
 
-	void set_activation_function (const string& name) //for Python
+	void set_activation_function (const string &name, const vector<double>& parameters = {}) //for Python
 	{
-		auto new_activation_function = get_activation_function(name);
+		auto new_activation_function = get_activation_function(name, parameters);
 		if (new_activation_function != nullptr)
 			res_function = new_activation_function;
 		return;
@@ -239,8 +240,47 @@ public:
 			res_function = get_activation_function(activ_f);
 		return;
 	}
+	friend class neural_network;
 
+	void print(const size_t& num_lauer = 0)
+	{
+		cout << "layer " << num_lauer << " n_in = " << neurons[0]->get_N() << " n_out = " << neurons.size() << " activation_function = " << res_function->name << endl;
+	}
 private:
+
+	void init_memory_for_train(const size_t & size_batch, const Settings &settings)
+	{
+		for (size_t i = 0; i < neurons.size(); ++i)
+			neurons[i]->init_memory_for_train(settings);
+
+		output.resize(size_batch);
+	}
+
+	void delete_memory_after_train()
+	{
+		for (size_t i = 0; i < neurons.size(); ++i)
+			neurons[i]->delete_memory_after_train();
+
+		for (size_t i = 0; i < output.size(); ++i)
+		{
+			output[i].clear();
+			output[i].shrink_to_fit();
+		}
+		output.clear();
+		output.shrink_to_fit();
+	}
+
+	void save(ofstream& open_file, const bool& only_scale = false) const
+	{
+		if (only_scale == false)
+			res_function->save(open_file);
+		open_file << neurons.size() << endl;
+		for (size_t i = 0; i < neurons.size(); ++i)
+			neurons[i]->save(open_file);
+	}
+
+
+	vector <vector<double>> output;
 	vector <shared_ptr<neuron>> neurons;
 	activation_function res_function;
 };
