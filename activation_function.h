@@ -6,8 +6,9 @@
 #include <random> 
 #include <ctime>
 #include <string>
-#include<corecrt_math_defines.h>
-#include <cmath>
+
+#define _USE_MATH_DEFINES
+#include <math.h>
 #include <omp.h>
 #include <iterator>
 #include <algorithm>
