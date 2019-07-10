@@ -7,7 +7,7 @@
 Библиотека работает как на Windows так и на Linux. Есть api для испльзования библиотеки в Python. 
 
 
-### Простота
+### Простая идея.
 Сеть создаётся одной строчкой кода с указанием числа нейронов в слоях.
 ```python
 nn = foxnn.neural_network([5, 10, 3, 2])
@@ -24,4 +24,9 @@ train_data.add_data([1, 2, 3], [1, 0])
 Запуск обучения
 ```python
 nn.train_on_data(data_for_train=train_data, speed=0.01, max_iteration=100, size_train_batch=98)
+```
+
+Получить выходное значение сети
+```python
+nn.get_out([0, 1, 2, 2, 0.1])
 ```
