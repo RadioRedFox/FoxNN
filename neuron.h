@@ -5,13 +5,9 @@
 #include <fstream>
 #include <vector>
 #include <random> 
-#include <string>
-#include <ctime>
-#include <cmath>
 #include <omp.h>
 #include <iterator>
 #include <algorithm>
-#include <set>
 #include <numeric>
 #include <memory>
 #include <iomanip>
@@ -27,6 +23,7 @@ bool f_abs_sort(const double &a, const double &b)
 class neuron
 {
 public:
+	//Creation of a neuron with random filling of scales
 	neuron(const size_t &N)
 	{
 		random_device rd;
@@ -36,6 +33,7 @@ public:
 		generate(w.begin(), w.end(), [&]() {return urd(gen); });
 	}
 
+	//Creating a neuron by reading weights from a file
 	neuron(ifstream& open_file)
 	{
 		size_t size_w;
@@ -46,40 +44,45 @@ public:
 			open_file >> w[i];
 	}
 
+	//copy weights constructor
 	neuron(const vector <double> &new_w)
 	{
 		w.resize(new_w.size());
 		copy(new_w.cbegin(), new_w.cend(), w.begin());
 	}
 
+	//copy constructor
 	neuron(const neuron &a)
 	{
 		w.resize(a.w.size());
 		copy(a.w.cbegin(), a.w.cend(), w.begin());
 	}
 
+	//move constructor
 	neuron(neuron &&a) noexcept
 	{
 		w = move(a.w);
 		a.w.clear();
 	}
 
+	//derivative at the point
 	double get_d_out(const vector <double> &enter, const activation_function &func, const bool &correct_summation = false) const
 	{
-		const double sum = scalar_product(enter, correct_summation);
+		const double sum = scalar_product(enter, correct_summation); //w[0]*enter[0] + w[1]*enter[1] + ...
 		return func->get_derivative_out(sum);
 	}
 
+	//The calculation of the derivative(momentum) for the weights
 	void derivate_w(const double &error, const vector <double> &enter, const activation_function &func, const bool& correct_summation = false)
 	{
 		const size_t N_w = w.size();
-		const double sum = scalar_product(enter, correct_summation);
-		const double d_res_function_multiplied_error = func->get_derivative_out(sum) * error;
+		const double sum = scalar_product(enter, correct_summation);  //w[0]*enter[0] + w[1]*enter[1] + ...
+		const double d_res_function_multiplied_error = func->get_derivative_out(sum) * error; // f'(sum) * error
 
 		for (size_t i = 0; i < N_w - 1; ++i)
 		{
 #pragma omp atomic
-			optimization[i]->derivative += enter[i] * d_res_function_multiplied_error; // d[i] = d[i] + enter[i] * error * derivative_res_function(sum)
+			optimization[i]->derivative += enter[i] * d_res_function_multiplied_error; // d[i] = d[i] + enter[i] * error * f'(sum)
 		}
 
 #pragma omp atomic
@@ -88,39 +91,31 @@ public:
 		return;
 	}
 
+	//change the weights after calculating the momentum
 	void correction_of_scales(const double& speed, const Settings &settings)
 	{
 		for (size_t i = 0; i < w.size(); ++i)
 		{
 			//w[i] -= speed * derivative[i]; //w[i] = w[i] - d[i]
 			optimization[i]->correction_of_scales(w[i], speed ,settings);
-			optimization[i]->derivative = 0.0;
+			optimization[i]->derivative = 0.0; //zeroing to count the momentum at the next iteration
 		}
 	}
 
+	//calculate the value of the neuron
 	double get_out(const vector <double> &enter, const activation_function &func, const bool& correct_summation = false) const
 	{
-		const double sum = scalar_product(enter, correct_summation);
-		return  func->get_out(sum);
+		const double sum = scalar_product(enter, correct_summation); //w[0]*enter[0] + w[1]*enter[1] + ...
+		return  func->get_out(sum); //f(sum)
 	}
 
-	double get_w(const size_t &i) const
-	{
-		return w[i];
-	}
-
-	void get_w(vector <double> &ww) const
-	{
-		ww.resize(w.size());
-		copy(w.begin(), w.end(), ww.begin());
-		return;
-	}
-
+	//outputs the number of weights (excluding the last)
 	size_t get_N(void) const
 	{
 		return w.size() - 1;
 	}
 
+	//randomly change the weights to a random value
 	void random_mutation(const double &speed)
 	{
 		const size_t N_w = w.size();
@@ -131,6 +126,7 @@ public:
 			w[i] += urd(gen) * speed;
 	}
 
+	//change of weights by a value commensurate with the value of weights
 	void smart_mutation(const double &speed)
 	{
 		if (speed >= 0 && speed <= 0)
@@ -145,6 +141,7 @@ public:
 		}
 	}
 
+	//operator = copy
 	neuron& operator= (const neuron &a)
 	{
 		if (this != &a)
@@ -155,6 +152,7 @@ public:
 		return *this;
 	}
 
+	////operator = move
 	neuron& operator= (neuron &&a) noexcept
 	{
 		if (this != &a)
@@ -168,16 +166,17 @@ public:
 	friend class layer;
 private:
 
+	//w[0]*enter[0] + w[1]*enter[1] + ...
 	double scalar_product(const vector <double>& enter, const bool& correct_summation) const
 	{
 		double sum;
 
 		if (correct_summation == false)
 		{
-			sum = inner_product(enter.cbegin(), enter.cend(), w.cbegin(), 0.0);
+			sum = inner_product(enter.cbegin(), enter.cend(), w.cbegin(), 0.0); ////w[0]*enter[0] + w[1]*enter[1] + ...
 			sum += -w.back();
 		}
-		else
+		else //before summing a large array of small numbers for accuracy they are sorted
 		{
 			vector <double> for_sum(w.size());
 			transform(enter.cbegin(), enter.cend(), w.cbegin(), for_sum.begin(), [](const double& a, const double& b) {return a * b; }); //for_sum[i] = enter[i] * w[i]
@@ -188,6 +187,7 @@ private:
 		return sum;
 	}
 
+	//saving a neuron to a file
 	void save(ofstream& open_file) const
 	{
 		open_file << w.size() << endl;
@@ -195,6 +195,7 @@ private:
 			open_file << scientific << setprecision(15) << w[i] << endl;
 	}
 
+	//the memory allocation for the counting of the pulse
 	void init_memory_for_train(const Settings &settings)
 	{
 		optimization.reserve(w.size());
@@ -202,11 +203,13 @@ private:
 			optimization.push_back(get_optimization(settings.settings_optimization.mode));
 	}
 
+	//free memory after training
 	void delete_memory_after_train()
 	{
 		optimization.clear();
 		optimization.shrink_to_fit();
 	}
+
 	vector <double> w; //scales
 	vector <shared_ptr<base_class_optimization>> optimization;
 };

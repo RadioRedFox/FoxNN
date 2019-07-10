@@ -21,6 +21,7 @@ class layer
 {
 public:
 
+	//creating layer
 	layer(const size_t &N_in, const size_t &N_neurons, const activation_function activ_f = nullptr) : neurons()
 	{
 		neurons.reserve(N_neurons);
@@ -28,11 +29,12 @@ public:
 			neurons.push_back(make_shared<neuron> (N_in));
 
 		if (activ_f == nullptr)
-			res_function = get_activation_function("sigmoid");
+			res_function = get_activation_function("sigmoid"); //default function
 		else
-			res_function = get_activation_function(activ_f);
+			res_function = get_activation_function(activ_f); 
 	}
 
+	//creating layer
 	layer(const vector <vector <double>> &v_w, activation_function activ_f = nullptr)
 	{
 		neurons.reserve(v_w.size());
@@ -40,11 +42,12 @@ public:
 			neurons.push_back(make_shared<neuron>(*w));
 
 		if (activ_f == nullptr)
-			res_function = get_activation_function("sigmoid");
+			res_function = get_activation_function("sigmoid"); //default function
 		else
 			res_function = get_activation_function(activ_f);
 	}
 
+	//copy constructor
 	layer(const layer &a)
 	{
 		for (size_t i = 0; i < a.neurons.size(); ++i)
@@ -53,12 +56,13 @@ public:
 		res_function = get_activation_function(a.res_function);
 	}
 	
+	//creating layer from file
 	layer(ifstream& open_file, const bool& only_scale = false)
 	{
 		if (only_scale == false)
 			res_function = get_activation_function_from_file(open_file);
 		else
-			res_function = get_activation_function("sigmoid");
+			res_function = get_activation_function("sigmoid"); //default function
 		size_t N_neuron;
 		open_file >> N_neuron;
 		neurons.reserve(N_neuron);
@@ -66,6 +70,7 @@ public:
 			neurons.push_back(make_shared<neuron>(open_file));
 	}
 
+	//move constructor
 	layer (layer &&a) noexcept
 	{
 		for (size_t i = 0; i < a.neurons.size(); ++i)
@@ -78,6 +83,7 @@ public:
 		a.res_function = nullptr;
 	}
 
+	//error count for the previous layer
 	void get_error(vector <double> &out_error, const vector <double> &error, const vector <double> enter, const bool& correct_summation) const
 	{
 		const size_t N_neurons = neurons.size();
@@ -86,6 +92,7 @@ public:
 		
 
 		out_error.resize(N_enter, 0.0);
+		//calculation of derivatives
 		transform(neurons.cbegin(), neurons.cend(), d_out.begin(), [&](const shared_ptr<neuron> n) 
 			{return n->get_d_out(enter, res_function, correct_summation); }); //	d_out[i] = neurons[i]->get_d_out(enter)
 
@@ -93,9 +100,9 @@ public:
 		{
 			for (size_t i = 0; i < N_enter; ++i)
 				for (size_t j = 0; j < N_neurons; ++j)
-					out_error[i] += error[j] * d_out[j] * neurons[j]->get_w(i);
+					out_error[i] += error[j] * d_out[j] * neurons[j]->w[i];
 		}
-		else
+		else //before summing a large array of small numbers for accuracy they are sorted
 		{
 			vector <vector <double>> for_sum_error(N_enter);
 
@@ -104,7 +111,7 @@ public:
 
 			for (size_t i = 0; i < N_enter; ++i)
 				for (size_t j = 0; j < N_neurons; ++j)
-					for_sum_error[i][j] = error[j] * d_out[j] * neurons[j]->get_w(i);
+					for_sum_error[i][j] = error[j] * d_out[j] * neurons[j]->w[i];
 
 			for (vector<vector <double>>::iterator v = for_sum_error.begin(); v < for_sum_error.end(); ++v)
 				sort(v->begin(), v->end(), f_abs_sort);
@@ -116,17 +123,21 @@ public:
 		}
 	}
 
+
 	void back_running(vector <double> &error, const vector <double> &enter, const bool& correct_summation)
 	{
 		const size_t N_neurons = neurons.size();
 		vector <double> out_error;
+		//error count for the previous layer
 		get_error(out_error, error, enter, correct_summation);
 
+		//The calculation of the derivative(momentum) for the weights
 		for (size_t i = 0; i < N_neurons; ++i)
 			neurons[i]->derivate_w(error[i], enter, res_function, correct_summation);
 		error = move(out_error);
 	}
 
+	//calculate the value of the layer
 	void get_out(const vector <double> &enter, vector <double> &out, const bool& correct_summation = false) const
 	{
 		out.resize(neurons.size());
@@ -134,6 +145,7 @@ public:
 			{return n->get_out(enter, res_function, correct_summation); }); //out[i] = neurot[i].get_out(entr)
 	}
 
+	//change the weights after calculating the momentum
 	void correction_of_scales(const double& speed, const Settings &setting)
 	{
 		for (size_t i = 0; i < neurons.size(); ++i)
@@ -141,25 +153,19 @@ public:
 		return;
 	}
 
-	void get_all_w(vector <vector <double>> &w) const
-	{
-		const size_t N_neurons = neurons.size();
-		w.resize(N_neurons);
-		for (size_t i = 0; i < N_neurons; i++)
-			neurons[i]->get_w(w[i]);
-		return;
-	}
-
+	//get N value in enter
 	size_t get_N_w(void) const
 	{
 		return neurons[0]->get_N();
 	}
 
+	//get N value in out
 	size_t get_N_n(void) const
 	{
 		return neurons.size();
 	}
 
+	//randomly change the weights to a random value
 	void random_mutation(const double &speed)
 	{
 		const size_t N_neurons = neurons.size();
@@ -167,6 +173,7 @@ public:
 			neurons[i]->random_mutation(speed);
 	}
 
+	//change of weights by a value commensurate with the value of weights
 	void smart_mutation(const double &speed)
 	{
 		const size_t N_neurons = neurons.size();

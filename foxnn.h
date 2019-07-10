@@ -50,6 +50,7 @@ public:
 			layers.push_back(make_shared<layer> (*(a.layers[i])));
 	}
 
+	//the basic method of creating a network
 	neural_network(const vector<int> &parameters)
 	{
 		bool error = false;
@@ -64,12 +65,14 @@ public:
 				layers.push_back(make_shared <layer>(parameters[i], parameters[i + 1], get_activation_function("sigmoid")));
 	}
 
+	//adding a layer to the end
 	void next_layer(const layer &new_layer)
 	{
 		layers.push_back(make_shared<layer>(new_layer));
 		return;
 	}
 
+	//to give the value of the network from the input
 	vector<double> get_out(const vector<double> &first_in) const
 	{
 
@@ -102,7 +105,7 @@ public:
 	{	
 		double start_time;
 		const size_t size_batch = get_batch_size(data_for_train.size(), size_train_batch);
-		create_memory_layer_and_derivativs(size_batch);
+		init_memory_for_train(size_batch);
 
 		const size_t size_test = data_for_train.size() * settings.part_for_test;
 		const train_data test = data_for_train.get_part_for_test(size_test);
@@ -168,11 +171,12 @@ public:
 		settings.print_settings();
 	}
 
-	void testing(const train_data& test) const
+	double testing(const train_data& test) const
 	{
 		size_t n_true;
 		const double er = get_error_for_test(test, n_true);
 		cout << "error = " << scientific << setprecision(15) << er << " n_true = " << n_true << "/" << test.size() << endl;
+		return er;
 	}
 
 	layer& operator[] (const size_t &i)
@@ -188,11 +192,6 @@ public:
 	Settings settings;
 
 private:
-
-	void set_Adam_step()
-	{
-
-	}
 
 	void delete_memory_after_train()
 	{
@@ -368,7 +367,7 @@ private:
 		}
 	}
 
-	void create_memory_layer_and_derivativs(const size_t & size_batch)
+	void init_memory_for_train(const size_t & size_batch)
 	{
 		for (size_t i = 0; i < layers.size(); ++i)
 			layers[i]->init_memory_for_train(size_batch, settings);
