@@ -31,7 +31,7 @@ nn.train_on_data(data_for_train=train_data, speed=0.01, max_iteration=100, size_
 nn.get_out([0, 1, 2, 2, 0.1])
 ```
 
-Есть оптимизации [Адама](https://github.com/RadioRedFox/FoxNN/wiki/7.-%D0%9E%D0%BF%D1%82%D0%B8%D0%BC%D0%B8%D0%B7%D0%B0%D1%86%D0%B8%D1%8F-%D0%BE%D0%B1%D1%83%D1%87%D0%B5%D0%BD%D0%B8%D1%8F.#%D0%9E%D0%BF%D1%82%D0%B8%D0%BC%D0%B8%D0%B7%D0%B0%D1%86%D0%B8%D1%8F-%D0%90%D0%B4%D0%B0%D0%BC%D0%B0) и [Нестерова](https://github.com/RadioRedFox/FoxNN/wiki/7.-%D0%9E%D0%BF%D1%82%D0%B8%D0%BC%D0%B8%D0%B7%D0%B0%D1%86%D0%B8%D1%8F-%D0%BE%D0%B1%D1%83%D1%87%D0%B5%D0%BD%D0%B8%D1%8F.#%D0%9E%D0%BF%D1%82%D0%B8%D0%BC%D0%B8%D0%B7%D0%B0%D1%86%D0%B8%D1%8F-%D0%9D%D0%B5%D1%81%D1%82%D0%B5%D1%80%D0%BE%D0%B2%D0%B0). 
+Есть [оптимизации](https://github.com/RadioRedFox/FoxNN/wiki/7.-%D0%9E%D0%BF%D1%82%D0%B8%D0%BC%D0%B8%D0%B7%D0%B0%D1%86%D0%B8%D1%8F-%D0%BE%D0%B1%D1%83%D1%87%D0%B5%D0%BD%D0%B8%D1%8F.) Адама и Нестерова
 ```python
 nn.settings.settings_optimization.set_mode("Adam")
 nn.settings.settings_optimization.set_mode("Nesterov")
