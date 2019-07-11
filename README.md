@@ -8,10 +8,13 @@
 
 
 ### Простая идея.
-[Сеть создаётся](https://github.com/RadioRedFox/FoxNN/wiki/3.-%D0%A1%D0%BE%D0%B7%D0%B4%D0%B0%D0%BD%D0%B8%D0%B5-%D0%BD%D0%B5%D0%B9%D1%80%D0%BE%D0%BD%D0%BD%D0%BE%D0%B9-%D1%81%D0%B5%D1%82%D0%B8.) одной строчкой кода с указанием числа нейронов в слоях и сколько целевых значений.
+[Сеть создаётся](https://github.com/RadioRedFox/FoxNN/wiki/3.-%D0%A1%D0%BE%D0%B7%D0%B4%D0%B0%D0%BD%D0%B8%D0%B5-%D0%BD%D0%B5%D0%B9%D1%80%D0%BE%D0%BD%D0%BD%D0%BE%D0%B9-%D1%81%D0%B5%D1%82%D0%B8.) одной строчкой кода с указанием числа нейронов в слоях и сколько входных параметров.
 ```python
-nn = foxnn.neural_network([3, 10, 4, 2]) # три слоя и 3 числа на вход и 2 на выход
+nn = foxnn.neural_network([3, 5, 4, 2]) # три слоя и 3 числа на вход и 2 на выход
 ```
+
+![Иллюстрация полученной нейросети](https://github.com/RadioRedFox/FoxNN/blob/master/img/net.JPG)
+
 Легко и понятно работать с [обучающей выборкой](https://github.com/RadioRedFox/FoxNN/wiki/2.-%D0%A0%D0%B0%D0%B1%D0%BE%D1%82%D0%B0-%D1%81-%D0%BE%D0%B1%D1%83%D1%87%D0%B0%D1%8E%D1%89%D0%B5%D0%B9-%D0%B2%D1%8B%D0%B1%D0%BE%D1%80%D0%BA%D0%BE%D0%B9.). Первый массив входные данные, второй массив целевые значения.  
 
 ```python
