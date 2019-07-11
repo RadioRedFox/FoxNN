@@ -8,7 +8,7 @@
 
 
 ### Простая идея.
-[Сеть создаётся](https://github.com/RadioRedFox/FoxNN/wiki/3.-%D0%A1%D0%BE%D0%B7%D0%B4%D0%B0%D0%BD%D0%B8%D0%B5-%D0%BD%D0%B5%D0%B9%D1%80%D0%BE%D0%BD%D0%BD%D0%BE%D0%B9-%D1%81%D0%B5%D1%82%D0%B8.) одной строчкой кода с указанием числа входных параметров, а затем последовательно указывать число нейронов в слоях.
+[Сеть создаётся](https://github.com/RadioRedFox/FoxNN/wiki/3.-%D0%A1%D0%BE%D0%B7%D0%B4%D0%B0%D0%BD%D0%B8%D0%B5-%D0%BD%D0%B5%D0%B9%D1%80%D0%BE%D0%BD%D0%BD%D0%BE%D0%B9-%D1%81%D0%B5%D1%82%D0%B8.) одной строчкой кода с указанием числа входных параметров, а затем с последовательным указанием чисел нейронов в слоях.
 ```python
 nn = foxnn.neural_network([3, 5, 4, 2]) # три слоя и 3 числа на вход и 2 на выход
 ```
@@ -26,12 +26,12 @@ train_data.add_data([1, 2, 3], [1, 0])
 
 [Запуск обучения](https://github.com/RadioRedFox/FoxNN/wiki/6.-%D0%9E%D0%B1%D1%83%D1%87%D0%B5%D0%BD%D0%B8%D0%B5-%D1%81%D0%B5%D1%82%D0%B8.)
 ```python
-nn.train_on_data(data_for_train=train_data, speed=0.01, max_iteration=100, size_train_batch=98)
+nn.train(data_for_train=train_data, speed=0.01, max_iteration=100, size_train_batch=98)
 ```
 
 Получить выходное значение сети
 ```python
-nn.get_out([0, 1, 0.1])
+nn.get_out([0, 1, 0.1]) #выметайся или дай значение сети =) 
 ```
 
 Есть [оптимизации](https://github.com/RadioRedFox/FoxNN/wiki/7.-%D0%9E%D0%BF%D1%82%D0%B8%D0%BC%D0%B8%D0%B7%D0%B0%D1%86%D0%B8%D1%8F-%D0%BE%D0%B1%D1%83%D1%87%D0%B5%D0%BD%D0%B8%D1%8F.) Адама и Нестерова
