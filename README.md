@@ -43,5 +43,5 @@ nn.settings.settings_optimization.set_mode("Nesterov")
 Есть возможность [рандомного изменения весов](https://github.com/RadioRedFox/FoxNN/wiki/8.-%D0%9C%D1%83%D1%82%D0%B0%D1%86%D0%B8%D1%8F) для моделирования эволюции:
 ```python
 nn.random_mutation(0.1) #  рандомное изменение весов
-nn.smart_mutation(0.1)  #  изменение весов на величину соизмеримую с исходим значением весов
+nn.smart_mutation(0.1)  #  изменение весов на величину, соизмеримую с исходным значением весов
 ```
