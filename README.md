@@ -8,9 +8,9 @@
 
 
 ### Простая идея.
-[Сеть создаётся](https://github.com/RadioRedFox/FoxNN/wiki/3.-%D0%A1%D0%BE%D0%B7%D0%B4%D0%B0%D0%BD%D0%B8%D0%B5-%D0%BD%D0%B5%D0%B9%D1%80%D0%BE%D0%BD%D0%BD%D0%BE%D0%B9-%D1%81%D0%B5%D1%82%D0%B8.) одной строчкой кода с указанием числа входных параметров, а затем с последовательным указанием чисел нейронов в слоях.
+[Сеть создаётся](https://github.com/RadioRedFox/FoxNN/wiki/3.-%D0%A1%D0%BE%D0%B7%D0%B4%D0%B0%D0%BD%D0%B8%D0%B5-%D0%BD%D0%B5%D0%B9%D1%80%D0%BE%D0%BD%D0%BD%D0%BE%D0%B9-%D1%81%D0%B5%D1%82%D0%B8.) одной строчкой кода с указанием количества входных параметров, а затем с последовательным указанием числа нейронов в слоях.
 ```python
-nn = foxnn.neural_network([3, 5, 4, 2]) # три слоя и 3 числа на вход и 2 на выход
+nn = foxnn.neural_network([3, 5, 4, 2]) # 3 параметра на вход, 3 слоя, и 2 параметра на выход
 ```
 
 ![Иллюстрация полученной нейросети](https://github.com/RadioRedFox/FoxNN/blob/master/img/net.JPG)
@@ -45,3 +45,5 @@ nn.settings.set_mode("Nesterov")
 nn.random_mutation(0.1) #  рандомное изменение весов
 nn.smart_mutation(0.1)  #  изменение весов на величину, соизмеримую с исходным значением весов
 ```
+
+Лицензия [APACHE 2.0](http://www.apache.org/licenses/LICENSE-2.0)
