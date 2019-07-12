@@ -1,3 +1,6 @@
+//Copyright[2019][Gaganov Ilya]
+//Licensed under the Apache License, Version 2.0
+
 #pragma once
 
 #include <iostream>
@@ -255,6 +258,11 @@ public:
 		write_line(auto_save_iteration, open_file);
 		write_line(correct_summation, open_file);
 		settings_optimization.save(open_file);
+	}
+
+	void set_mode(const string& next_mode)
+	{
+		settings_optimization.set_mode(next_mode);
 	}
 
 	void set_part_for_test(const double value_for_part_for_test)

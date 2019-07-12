@@ -1,3 +1,6 @@
+//Copyright[2019][Gaganov Ilya]
+//Licensed under the Apache License, Version 2.0
+
 #pragma once
 
 #include "activation_function.h"
