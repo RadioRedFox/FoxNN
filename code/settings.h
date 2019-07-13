@@ -223,7 +223,7 @@ public:
 		max_on_last_layer = 0;
 		one_if_value_greater_intermediate_value = 0;
 		intermediate_value = 0.5;
-		part_for_test = 0;
+		part_for_test = 0.1;
 		auto_save_name_file = "auto_save.txt";
 		auto_save_iteration = 0;
 		correct_summation = 0;
